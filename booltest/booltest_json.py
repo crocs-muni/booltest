@@ -3,6 +3,7 @@
 
 import itertools
 import os
+import sys
 import shutil
 import subprocess
 import time
@@ -200,6 +201,7 @@ class BooltestJson(Booltest):
         hwanalysis = HWAnalysis()
         hwanalysis.from_json(self.hw_cfg)
         hwanalysis.reset()
+        self.check_ref_db(hwanalysis)
         return hwanalysis
 
     def work(self, bin_data=None):
@@ -240,6 +242,8 @@ class BooltestJson(Booltest):
         self.hw_cfg = hw_cfg
         self.hwanalysis = HWAnalysis()
         self.hwanalysis.from_json(hw_cfg)
+        self.check_ref_db(self.hwanalysis)
+
         self.blocklen = self.hwanalysis.blocklen
         self.deg = self.hwanalysis.deg
         self.top_comb = self.hwanalysis.top_comb
@@ -303,6 +307,7 @@ class BooltestJson(Booltest):
         total_results = len(self.hwanalysis.last_res) if self.hwanalysis.last_res else 0
         best_dists = self.hwanalysis.last_res[0:min(NRES_TO_DUMP, total_results)] if self.hwanalysis.last_res else None
         halving_pvals_ok = False
+        best_dist_hlv_zscore = None
 
         if self.do_halving and len(jscres) > 1 and 'halvings' in jscres[1] and jscres[1]['halvings']:
             halving_pvals_ok = True
@@ -310,6 +315,13 @@ class BooltestJson(Booltest):
             # Re-sort best distinguishers by the halving ordering
             sorder = self.build_poly_sort_index([common.jsunwrap(x['poly']) for x in jscres[1]['halvings']])
             best_dists.sort(key=lambda x: sorder[common.immutable_poly(common.jsunwrap(x.poly))])
+
+            # Dists from halving
+            try:
+                dists1s = sorted(jscres[1]['dists'], key=lambda x: sorder[common.immutable_poly(common.jsunwrap(x['poly']))])
+                best_dist_hlv_zscore = dists1s[0]['zscore']
+            except Exception as e:
+                logger.warning('Exception best_dist_hlv_zscore: %s' % (e,), exc_info=e)
 
             # Add pvalue from the halving to the best distingushers
             mrange = min(len(jscres[1]['halvings']), len(best_dists))
@@ -323,6 +335,7 @@ class BooltestJson(Booltest):
             jsres['best_poly'] = NoIndent(best_dists[0][0])  # .poly
             if halving_pvals_ok:
                 jsres['best_pval'] = jscres[1]['halvings'][0]['pval']
+                jsres['best_zscore_hlv'] = best_dist_hlv_zscore
 
         for ix, rr in enumerate(jscres):
             if 'dists' in rr:
@@ -384,7 +397,7 @@ class BooltestJson(Booltest):
         self.args = parser.parse_args(args)
 
     def main(self):
-        logger.debug('App started')
+        logger.debug('App started, path: %s, version: %s' % (sys.path, sys.version_info))
 
         self.parse_args()
         jsres = self.work()

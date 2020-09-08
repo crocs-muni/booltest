@@ -27,14 +27,15 @@ pyenv local 3.7.1
 export HDIR=/storage/brno3-cerit/home/ph4r05/
 export RESDIR=$HDIR/bool-res
 export BACKDIR=$HDIR/bool-back
-export JOBDIR=$HDIR/bool-jobNr14
 export SIGDIR=$HDIR/bool-sig
+export LOGDIR=$HDIR/bool-log
 
-export JOBDIR=$HDIR/bool-jobNr56
-mkdir -p $JOBDIR
 mkdir -p $BACKDIR
 mkdir -p $SIGDIR
+mkdir -p $LOGDIR
 
+export JOBDIR=$HDIR/bool-jobNr92
+mkdir -p $JOBDIR
 cd $JOBDIR
 
 exec stdbuf -eL python booltest/testjobs.py --generator-path $HDIR/eacirc-streams/build/eacirc-streams \
@@ -536,9 +537,201 @@ python ../booltest/booltest/testjobs.py  \
     --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
     --topterm-heap-k 256 --no-functions --check-json 0
 
+########################################################################################################################
+## Sec margins 25, 26, 27
+export RESDIR=$HDIR/bool-res-sm
+mkdir -p $RESDIR
 
+# Security margins experiment 3 for booltest, 10, 100 MB
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0  --skip-finished
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed f39e9205e31b36fa --skip-finished
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed c2bf37890011dfed --skip-finished
+
+
+########################################################################################################################
+## Halving sec margins
+export RESDIR=$HDIR/bool-res-hlv
+mkdir -p $RESDIR
+
+# Security margins experiment 3 for booltest, 10, 100 MB
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0  --skip-finished --halving
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed f39e9205e31b36fa --skip-finished --halving
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed c2bf37890011dfed --skip-finished --halving
+
+
+# Sec margins configurations, booltest to high orders: 3-3
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --skip-finished --halving
+
+########################################################################################################################
+## Halving sec margins II
+export RESDIR=$HDIR/bool-res-hlv2
+mkdir -p $RESDIR
+
+# Security margins experiment 3 for booltest, 10, 100 MB
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0  --skip-finished --halving
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+# Redundant, experiments {25, 26, 27} are same just seed differs, reseeding makes dups
+# sets same new seed for all experiments.
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed f39e9205e31b36fa --skip-finished --halving
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+# Redundant, experiments {25, 26, 27} are same just seed differs, reseeding makes dups
+# sets same new seed for all experiments.
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed c2bf37890011dfed --skip-finished --halving
+
+
+########################################################################################################################
+# Booltest2 10k reference runs
+export RESDIR=$HDIR/bool-res-hlv-ref
+export JOBDIR=$HDIR/bool-jobNr10
+mkdir -p cd $JOBDIR; cd $JOBDIR
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-ref \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --skip-finished --halving
+
+########################################################################################################################
+# Booltest1 60k reference runs
+# generated by booltest/assets/refgen.py, offset 0x1000000
+export RESDIR=$HDIR/bool-res-ref2
+export JOBDIR=$HDIR/bool-jobNr11
+mkdir -p cd $JOBDIR; cd $JOBDIR
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-ref60 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --skip-finished \
+    --minimal-files 1 --pure-server 1 --shuffle-batches 1 --jobs-per-batch 300000 --indent 0
+
+
+########################################################################################################################
+# Booltest1 40k reference runs
+# generated by booltest/assets/refgen.py, offset 0x0100000000000000
+export RESDIR=$HDIR/bool-res-ref3
+export JOBDIR=$HDIR/bool-jobNr17
+mkdir -p cd $JOBDIR; cd $JOBDIR
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-ref40 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --skip-finished \
+    --minimal-files 1 --pure-server 1 --shuffle-batches 1 --jobs-per-batch 300000 --indent 0
+
+
+########################################################################################################################
 # Processing:
 qsub -l select=1:ncpus=4:mem=32gb:brno=true -l walltime=48:00:00 -I
 python booltest/testjobsproc.py ../bool-res --aes-ref
 python booltest/testjobsproc.py ../bool-res.tar --aes-ref --tar
+
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py \
+  --pval-data pval_db.json --json DIR
+
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py \
+  --pval-data pval_db.json --file-suffix='-booltest1-ref-60k-2' --json ../bool-res-ref2
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py \
+  --pval-data pval_db.json --file-suffix='-booltest1-ref-40k' --json ../bool-res-ref
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py \
+  --pval-data pval_db.json --file-suffix='-booltest1-ref3-40k' --json ../bool-res-ref3
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py \
+  --pval-data pval_db.json --file-suffix='-sm' --json ../bool-res-sm
 

@@ -21,6 +21,7 @@ import traceback
 import logging
 import math
 import coloredlogs
+from typing import List, Dict, Tuple, Any, Optional
 
 from booltest import common, egenerator, timer
 
@@ -108,6 +109,7 @@ class TestRecord(object):
         self.comb_deg = None
         self.data = None
         self.data_bytes = None
+        self.data_hash = None
         self.elapsed = None
         self.iteration = 0
         self.strategy = None
@@ -118,9 +120,13 @@ class TestRecord(object):
         self.fhash = None
         self.mtime = None
         self.cfg_file_name = None
+        self.seed = None
 
         self.zscore = None
         self.best_poly = None
+        self.is_halving = False
+        self.pvalue = None
+        self.halving_zscore = None
 
         for kw in kwargs:
             setattr(self, kw, kwargs[kw])
@@ -248,9 +254,18 @@ def process_file(js, fname, args=None):
     tr.time_process = common.defvalkeys(js, 'time_process')
     tr.cfg_file_name = common.defvalkeys(js, 'config.config.spec.gen_cfg.file_name')
     tr.data_bytes = common.defvalkeys(js, 'data_read')
+    tr.data_hash = common.defvalkeys(js, 'data_hash')
+    tr.seed = common.defvalkeys(js, 'config.config.spec.gen_cfg.seed')
 
     if tr.data:
         tr.data = int(math.ceil(math.ceil(tr.data/1024.0)/1024.0))
+
+    if not tr.cfg_file_name:
+        tr.cfg_file_name = common.defvalkeys(js, 'config.config.gen_file')
+        if tr.cfg_file_name and tr.cfg_file_name.startswith('gen-'):
+            tr.cfg_file_name = tr.cfg_file_name[4:]
+        if tr.cfg_file_name and tr.cfg_file_name.endswith('json'):
+            tr.cfg_file_name = tr.cfg_file_name[:-5]
 
     tr.bname = fname
     mtch = re.search(r'-(\d+)\.json$', fname)
@@ -271,6 +286,10 @@ def process_file(js, fname, args=None):
 
     # if 'elapsed' in js:
     #     tr.elapsed = js['elapsed']
+
+    tr.is_halving = common.defvalkeys(js, 'config.halving')
+    if tr.is_halving:
+        tr.pvalue = common.defvalkeys(js, 'best_pval')
 
     return tr
 
@@ -357,7 +376,7 @@ class Processor(object):
         self.total_functions = None
         self.ref_bins = None
         self.timing_bins = None
-        self.test_records = None
+        self.test_records = None  # type: Optional[List[TestRecord]]
         self.invalid_results = None
         self.invalid_results_num = None
         self.reset_state()
@@ -382,6 +401,9 @@ class Processor(object):
 
         parser.add_argument('--out-dir', dest='out_dir', default='.',
                             help='dir for results')
+
+        parser.add_argument('--file-suffix', dest='file_suffix', default='',
+                            help='suffix for result files')
 
         parser.add_argument('--delim', dest='delim', default=';',
                             help='CSV delimiter')
@@ -421,6 +443,9 @@ class Processor(object):
 
         parser.add_argument('--delete-invalid', dest='delete_invalid', default=False, action='store_const', const=True,
                             help='Delete invalid results')
+
+        parser.add_argument('--append-seed', dest='append_seed', default=False, action='store_const', const=True,
+                            help='Append seed to the data file')
 
         parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='folder with test matrix resutls - result dir of testbed.py')
@@ -710,16 +735,17 @@ class Processor(object):
         elif args.benchmark:
             fname_narrow = 'bench_'
 
+        fsuffix = self.args.file_suffix
         fname_time = int(time.time())
-        fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
-        fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s.csv' % (fname_narrow, fname_time))
-        fname_results_json = os.path.join(args.out_dir, 'results_%s%s.json' % (fname_narrow, fname_time))
-        fname_results_bat_json = os.path.join(args.out_dir, 'results_bat_%s%s.json' % (fname_narrow, fname_time))
-        fname_results_csv = os.path.join(args.out_dir, 'results_%s%s.csv' % (fname_narrow, fname_time))
-        fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s.csv' % (fname_narrow, fname_time))
-        fname_results_rfd_csv = os.path.join(args.out_dir, 'results_rfd_%s%s.csv' % (fname_narrow, fname_time))
-        fname_results_rfr_csv = os.path.join(args.out_dir, 'results_rfr_%s%s.csv' % (fname_narrow, fname_time))
-        fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s.csv' % (fname_narrow, fname_time))
+        fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s%s.json' % (fname_narrow, fname_time, fsuffix))
+        fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_results_json = os.path.join(args.out_dir, 'results_%s%s%s.json' % (fname_narrow, fname_time, fsuffix))
+        fname_results_bat_json = os.path.join(args.out_dir, 'results_bat_%s%s%s.json' % (fname_narrow, fname_time, fsuffix))
+        fname_results_csv = os.path.join(args.out_dir, 'results_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_results_rfd_csv = os.path.join(args.out_dir, 'results_rfd_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_results_rfr_csv = os.path.join(args.out_dir, 'results_rfr_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
 
         # Reference bins
         ref_keys = sorted(list(self.ref_bins.keys()))
@@ -803,7 +829,7 @@ class Processor(object):
 
             # CSV grouping, avg all results
             csv_grouper = lambda x: (x.block, x.deg, x.comb_deg)
-            group_expanded = sorted(list(g), key=csv_grouper)  # type: list[TestRecord]
+            group_expanded = sorted(list(g), key=csv_grouper)  # type: List[TestRecord]
             results_map = {}
             for ssk, ssg in itertools.groupby(group_expanded, key=csv_grouper):
                 ssg = list(ssg)
@@ -826,7 +852,7 @@ class Processor(object):
                 fh_csv.write(csv_line + '\n')
 
             # Grid list for booltest params
-            results_list = []
+            results_list = []  # type: List[TestRecord]
             for cur_key in itertools.product(*total_cases):
                 if cur_key in results_map:
                     results_list.append(results_map[cur_key])
@@ -834,7 +860,8 @@ class Processor(object):
                     results_list.append(None)
 
             # CSV result
-            csv_line = args.delim.join(prefix_cols + [(fls(x.zscore) if x is not None else '-') for x in results_list])
+            res_selector = lambda x: (x.pvalue if x.is_halving else x.zscore)
+            csv_line = args.delim.join(prefix_cols + [(fls(res_selector(x)) if x is not None else '-') for x in results_list])
             fh_csv.write(csv_line+'\n')
 
             # CSV only if above threshold
@@ -883,12 +910,16 @@ class Processor(object):
             cur_js['round'] = fnc_round
             cur_js['method'] = method
             cur_js['data_mb'] = data_mb
-            cur_js['tests'] = [[x.block, x.deg, x.comb_deg, x.zscore] for x in group_expanded]
+            cur_js['tests'] = [[x.block, x.deg, x.comb_deg, res_selector(x)] for x in group_expanded]
             json.dump(cur_js, fh_json, indent=2)
             fh_json.write(',\n')
 
             # JSON battery format result
             for cur_res in group_expanded:
+                cdatafile = cur_res.cfg_file_name
+                if self.args.append_seed:
+                    cdatafile = "%s_seed_%s" % (cur_res.cfg_file_name, cur_res.seed)
+
                 cur_js = collections.OrderedDict()
                 cur_js['battery'] = 'booltest'
                 cur_js['function'] = fnc_name
@@ -898,9 +929,16 @@ class Processor(object):
                 cur_js['deg'] = cur_res.deg
                 cur_js['k'] = cur_res.comb_deg
                 cur_js['m'] = cur_res.block
-                cur_js['data_file'] = cur_res.cfg_file_name
+                cur_js['data_file'] = cdatafile
+                cur_js['data_hash'] = cur_res.data_hash
+                cur_js['seed'] = cur_res.seed
                 cur_js['zscore'] = cur_res.zscore
-                cur_js['pval0_rej'] = pval_db.eval(cur_res.block, cur_res.deg, cur_res.comb_deg, cur_res.zscore) if args.pval_data else None
+                cur_js['halving'] = cur_res.is_halving
+                if cur_res.is_halving:
+                    cur_js['pvalue'] = cur_res.pvalue
+                    cur_js['pval0_rej'] = cur_res.pvalue < (1./40000)
+                else:
+                    cur_js['pval0_rej'] = pval_db.eval(cur_res.block, cur_res.deg, cur_res.comb_deg, cur_res.zscore) if args.pval_data else None
                 json.dump(cur_js, fh_bat_json, indent=2)
                 fh_bat_json.write(',\n')
 

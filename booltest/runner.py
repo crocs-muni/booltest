@@ -122,6 +122,8 @@ class AsyncRunner:
         self.ret_code = None
         self.out_acc = []
         self.err_acc = []
+        self.time_start = None
+        self.time_elapsed = None
         self.feeder = None
         self.proc = None
         self.is_running = False
@@ -208,6 +210,7 @@ class AsyncRunner:
             **run_args
         )
 
+        self.time_start = time.time()
         self.proc = p
         self.ret_code = 1
         self.out_acc, self.err_acc = [], []
@@ -291,9 +294,10 @@ class AsyncRunner:
                     logger.debug("Sigint sent")
                     logger.debug("Process closed")
 
-                if (self.using_stdout_cap and not out) or (self.using_stderr_cap and err):
+                # If there is data, consume it right away.
+                if (self.using_stdout_cap and out) or (self.using_stderr_cap and err):
                     continue
-                time.sleep(0.1)
+                time.sleep(0.15)
 
             logger.debug("Runner while ended")
             p.wait()
@@ -324,6 +328,7 @@ class AsyncRunner:
 
         finally:
             self.was_running = True
+            self.time_elapsed = time.time() - self.time_start
             try_fnc(lambda: self.feeder.close())
             try_fnc(lambda: self.proc.close())
 
@@ -347,12 +352,16 @@ class AsyncRunner:
         logger.debug("Program terminated")
         self.deinit()
 
-    def start(self):
+    def start(self, wait_running=True):
         install_sarge_filter()
         self.thread = threading.Thread(target=self.run, args=())
         self.thread.setDaemon(False)
         self.thread.start()
         self.terminating = False
+        if not wait_running:
+            self.is_running = True
+            return
+
         self.is_running = False
         while not self.is_running and not self.was_running:
             time.sleep(0.1)

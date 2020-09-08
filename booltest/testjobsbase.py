@@ -2,7 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import os
-
+import collections
+import uuid
+import time
+import random
+import json
+from typing import List, Tuple, Dict, Optional, Any, Union
+from booltest import common, misc
 
 job_tpl_hdr = '''#!/bin/bash
 
@@ -34,15 +40,11 @@ touch ${IND_BASE}.started
 
 '''
 
-job_tpl = '''
-./generator-metacentrum.sh -c=%s | ./booltest-json-metacentrum.sh \\
-    %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
-'''
+job_tpl = '''./generator-metacentrum.sh -c={{GEN_CFG}} | ./booltest-json-metacentrum.sh \\
+    {{ARGS}} > "${LOGDIR}/{{RES_FNAME}}.log" 2>&1"'''
 
-job_tpl_data_file = '''
-./booltest-json-metacentrum.sh \\
-    %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
-'''
+job_tpl_data_file = '''./booltest-json-metacentrum.sh \\
+    {{ARGS}} > "${LOGDIR}/{{RES_FNAME}}.log" 2>&1"'''
 
 tpl_handle_res_common = '''
 RRES=$(($RBOOL == 0 ? $RRES : 10 + (($RRES - 10 + 1) % 100)))
@@ -96,6 +98,24 @@ class TestBatchUnit(object):
         self.comb_deg = None
         self.data_size = None
         self.size_mb = None
+        self.gen_data = None
+        self.cfg_data = None
+
+    def subst_params(self, tpl):
+        args = ' --config-file %s' % self.cfg_file_path
+        res = tpl.replace('{{ARGS}}', args)
+        res = res.replace('{{GEN_CFG}}', self.gen_file_path)
+        res = res.replace('{{RES_FNAME}}', self.res_file)
+        return res
+
+    def get_tpl(self):
+        if self.gen_file_path:
+            return job_tpl
+        else:
+            return job_tpl_data_file
+
+    def get_exec(self):
+        return self.subst_params(self.get_tpl())
 
 
 class BatchGenerator(object):
@@ -103,8 +123,10 @@ class BatchGenerator(object):
     Generating batch jobs
     """
     def __init__(self):
+        self.init_time = time.time()
         self.generator_files = set()
         self.job_dir = None
+        self.job_acc = []  # type: List[TestBatchUnit]
         self.job_files = []
         self.job_batch = []
         self.job_clean_batch = []
@@ -112,7 +134,7 @@ class BatchGenerator(object):
         self.batch_max_deg = 0
         self.batch_max_comb_deg = 0
         self.job_batch_max_size = 50
-        self.cur_batch_def = None  # type: TestBatchUnit
+        self.cur_batch_def = None  # type: Optional[TestBatchUnit]
         self.memory_threshold = 50
         self.num_units = 0
         self.num_skipped = 0
@@ -121,6 +143,11 @@ class BatchGenerator(object):
         self.aggregation_factor = 1.0
         self.retry = True
         self.max_hour_job = 24
+        self.no_pbs_files = False
+        self.shuffle_batches = False
+        self.jobs_per_server_file = None
+        self.server_file_ctr = 0
+        self.indent = 0
 
     def aggregate(self, jobs, fact, min_jobs=1):
         return max(min_jobs, int(jobs * fact))
@@ -131,14 +158,14 @@ class BatchGenerator(object):
         :param unit:
         :return:
         """
-        args = ' --config-file %s' % unit.cfg_file_path
-        job_data = job_tpl_prefix % unit.res_file
+        self.job_acc.append(unit)
+        self.check_flush_server_file()
 
-        job_exec = ''
-        if unit.gen_file_path:
-            job_exec = job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
-        else:
-            job_exec = job_tpl_data_file % (args, unit.res_file, unit.res_file)
+        if self.no_pbs_files:
+            return
+
+        job_exec = "\n" + unit.get_exec() + "\n"
+        job_data = job_tpl_prefix % unit.res_file
 
         if self.retry:
             chunk = tpl_handle_res_retry.replace('<<JOB>>', job_exec)
@@ -205,7 +232,12 @@ class BatchGenerator(object):
         Flushes batch
         :return:
         """
+        self.flush_server_file()
+
         if len(self.job_batch) == 0:
+            return
+
+        if self.no_pbs_files:
             return
 
         job_data = job_tpl_hdr + '\n'.join(self.job_clean_batch) + '\n\n' + '\n'.join(self.job_batch)
@@ -233,5 +265,38 @@ class BatchGenerator(object):
         self.batch_max_deg = 0
         self.batch_max_comb_deg = 0
 
+    def check_flush_server_file(self):
+        if not self.jobs_per_server_file or len(self.job_acc) < self.jobs_per_server_file:
+            return
+        self.flush_server_file()
 
+    def flush_server_file(self):
+        if not len(self.job_acc):
+            return
+
+        if self.shuffle_batches:
+            random.shuffle(self.job_acc)
+
+        jlist = self.get_job_list()
+        jlist_path = os.path.join(self.job_dir, 'batcher-jobs-%s-%05d.json' % (self.init_time, self.server_file_ctr))
+        with open(jlist_path, 'w') as fh:
+            common.json_dump(jlist, fh, indent=self.indent)
+
+        self.server_file_ctr += 1
+        self.job_acc = []
+
+    def get_job_list(self):
+        jsres = collections.OrderedDict()
+        jobs = []
+        jsres['jobs'] = jobs
+
+        for jb in self.job_acc:
+            rec = collections.OrderedDict()
+            for e in jb.__dict__:
+                rec[e] = getattr(jb, e, None)
+            rec['exec'] = jb.get_exec().strip()
+            rec['tpl'] = jb.get_tpl().strip()
+            rec['uuid'] = str(uuid.uuid4())
+            jobs.append(rec)
+        return jsres
 
